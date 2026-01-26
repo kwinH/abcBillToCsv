@@ -1,0 +1,149 @@
+name: Go Build and Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: false
+        default: ''
+      bump_type:
+        description: 'Version bump type (major/minor/patch)'
+        required: false
+        default: 'patch'
+        type: choice
+        options:
+        - patch
+        - minor
+        - major
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+
+    - name: Install dependencies
+      run: go mod tidy
+
+    - name: Build
+      run: go build -o abcBillToCsv .
+
+    - name: Test
+      run: go test ./...
+
+  release:
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Get current version
+        id: version
+        run: |
+          # 获取最新的标签
+          LATEST_TAG=$(git tag --sort=-version:refname | head -n1)
+          if [ -z "$LATEST_TAG" ] || [ "$LATEST_TAG" = "" ]; then
+            LATEST_TAG="v0.0.0"
+          fi
+          
+          # 根据触发方式确定新标签
+          if [ "${{ github.event.inputs.version }}" != "" ]; then
+            # 手动指定版本
+            NEW_TAG="${{ github.event.inputs.version }}"
+          else
+            # 自动版本递增
+            BUMP_TYPE="${{ github.event.inputs.bump_type || 'patch' }}"
+            
+            # 解析版本号
+            if [[ $LATEST_TAG =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]]; then
+              MAJOR=${BASH_REMATCH[1]}
+              MINOR=${BASH_REMATCH[2]}
+              PATCH=${BASH_REMATCH[3]}
+            else
+              # 默认起始版本
+              MAJOR=0
+              MINOR=0
+              PATCH=0
+            fi
+            
+            # 根据类型递增版本
+            case $BUMP_TYPE in
+              "major")
+                MAJOR=$((MAJOR + 1))
+                MINOR=0
+                PATCH=0
+                ;;
+              "minor")
+                MINOR=$((MINOR + 1))
+                PATCH=0
+                ;;
+              "patch")
+                PATCH=$((PATCH + 1))
+                ;;
+            esac
+            
+            NEW_TAG="v$MAJOR.$MINOR.$PATCH"
+          fi
+          
+          echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "new_tag=$NEW_TAG" >> $GITHUB_OUTPUT
+          echo "Latest tag: $LATEST_TAG"
+          echo "New tag will be: $NEW_TAG"
+
+      - name: Build binaries for different platforms
+        run: |
+          # 构建不同平台的二进制文件
+          GOOS=linux GOARCH=amd64 go build -o abcBillToCsv-linux-amd64 .
+          GOOS=darwin GOARCH=amd64 go build -o abcBillToCsv-darwin-amd64 .
+          GOOS=windows GOARCH=amd64 go build -o abcBillToCsv-windows-amd64.exe .
+
+      - name: Create and push tag
+        env:
+          NEW_TAG: ${{ steps.version.outputs.new_tag }}
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # 创建带注释的标签
+          git tag -a $NEW_TAG -m "Release version $NEW_TAG"
+          
+          # 推送标签到远程仓库
+          git push origin $NEW_TAG
+
+      - name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: abcBillToCsv-*
+          file_glob: true
+          tag: ${{ steps.version.outputs.new_tag }}
+          overwrite: true
+          body: |
+            Release ${{ steps.version.outputs.new_tag }}
+
+            ## Changes
+            - Manual release triggered from GitHub Actions
+            - Latest commit: ${{ github.sha }}
+
+            ## Assets
+            - abcBillToCsv-linux-amd64 (Linux)
+            - abcBillToCsv-darwin-amd64 (macOS)
+            - abcBillToCsv-windows-amd64.exe (Windows)
