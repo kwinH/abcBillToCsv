@@ -11,16 +11,15 @@
 ## 使用方法
 
 1. 下载适合您操作系统的预编译二进制文件：
-
-   - Linux: [abcBillToCsv-linux-amd64](releases/download/vX.X.X/abcBillToCsv-linux-amd64)
-   - macOS: [abcBillToCsv-darwin-amd64](releases/download/vX.X.X/abcBillToCsv-darwin-amd64)
-   - Windows: [abcBillToCsv-windows-amd64.exe](releases/download/vX.X.X/abcBillToCsv-windows-amd64.exe)
-2. 给予执行权限（Linux/macOS）：
+   - Linux: [abcBillToCsv-linux-amd64](https://github.com/kwinH/abcBillToCsv/releases/download/v1.0.0/abcBillToCsv-linux-amd64)
+   - macOS: [abcBillToCsv-darwin-amd64](https://github.com/kwinH/abcBillToCsv/releases/download/v1.0.0/abcBillToCsv-darwin-amd64)
+   - Windows: [abcBillToCsv-windows-amd64.exe](https://github.com/kwinH/abcBillToCsv/releases/download/v1.0.0/abcBillToCsv-windows-amd64.exe)
+3. 给予执行权限（Linux/macOS）：
 
    ```bash
    chmod +x abcBillToCsv-[platform]
    ```
-3. 运行应用程序并传入您的 ABC 银行账单 PDF 文件路径：
+4. 运行应用程序并传入您的 ABC 银行账单 PDF 文件路径：
 
    ```bash
    # 基本用法：将 PDF 文件路径作为第一个参数
